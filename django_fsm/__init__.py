@@ -242,11 +242,11 @@ class FSMFieldMixin(object):
         self.protected = kwargs.pop('protected', False)
         self.transitions = {}  # cls -> (transitions name -> method)
         self.state_proxy = {}  # state -> ProxyClsRef
+        self.choices = kwargs.get('choices', None)
 
         state_choices = kwargs.pop('state_choices', None)
-        choices = kwargs.get('choices', None)
-        if state_choices is not None and choices is not None:
-            raise ValueError('Use one of choices or state_choces value')
+        if state_choices is not None and self.choices is not None:
+            raise ValueError('Use either `choices` or `state_choices` value, not both.')
 
         if state_choices is not None:
             choices = []
@@ -254,6 +254,7 @@ class FSMFieldMixin(object):
                 choices.append((state, title))
                 self.state_proxy[state] = proxy_cls_ref
             kwargs['choices'] = choices
+            self.choices = choices
 
         super(FSMFieldMixin, self).__init__(*args, **kwargs)
 
@@ -307,6 +308,11 @@ class FSMFieldMixin(object):
                 object=instance, method=method)
 
         next_state = meta.next_state(current_state)
+
+        if next_state not in (self.choices, '*', '+'):
+            raise TransitionNotAllowed(
+                "Can't switch from state '{0}' to '{1}'; '{1}' is not a valid state.".format(current_state, next_state)
+            )
 
         signal_kwargs = {
             'sender': instance.__class__,
@@ -488,7 +494,7 @@ class ConcurrentTransitionMixin(object):
 
 def transition(field, source='*', target=None, on_error=None, conditions=[], permission=None, custom={}):
     """
-    Method decorator for mark allowed transitions
+    Method decorator to mark allowed transitions
 
     Set target to None if current state needs to be validated and
     has not changed after the function call
