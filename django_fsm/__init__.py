@@ -242,10 +242,10 @@ class FSMFieldMixin(object):
         self.protected = kwargs.pop('protected', False)
         self.transitions = {}  # cls -> (transitions name -> method)
         self.state_proxy = {}  # state -> ProxyClsRef
-        self.choices = kwargs.get('choices', None)
+        self._choices = kwargs.get('choices', None)
 
         state_choices = kwargs.pop('state_choices', None)
-        if state_choices is not None and self.choices is not None:
+        if state_choices is not None and self._choices is not None:
             raise ValueError('Use either `choices` or `state_choices` value, not both.')
 
         if state_choices is not None:
@@ -254,7 +254,7 @@ class FSMFieldMixin(object):
                 choices.append((state, title))
                 self.state_proxy[state] = proxy_cls_ref
             kwargs['choices'] = choices
-            self.choices = choices
+            self._choices = choices
 
         super(FSMFieldMixin, self).__init__(*args, **kwargs)
 
@@ -309,7 +309,7 @@ class FSMFieldMixin(object):
 
         next_state = meta.next_state(current_state)
 
-        if next_state not in (self.choices, '*', '+'):
+        if next_state not in dict(self._choices).keys() and next_state not in ('*', '+'):
             raise TransitionNotAllowed(
                 "Can't switch from state '{0}' to '{1}'; '{1}' is not a valid state.".format(current_state, next_state)
             )
